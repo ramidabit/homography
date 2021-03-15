@@ -23,6 +23,11 @@ cvx_begin
         A_est(:,i) = H_est*B_true(:,i);
     end
     minimize pow_pos(norm(A_est - A_true,1),2) / num_points
+    
+    subject to
+    H_est(3,1) == 0;
+    H_est(3,2) == 0;
+    H_est(3,3) == 1;
 cvx_end
 
 train_error = cvx_optval;

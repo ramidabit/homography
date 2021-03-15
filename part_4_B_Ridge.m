@@ -1,7 +1,5 @@
-% NUM_ITER is the number of iterations RANSAC will run
-NUM_ITER = 60;
-% MAX_ERR is the maximum distance allowed for a point to be an inlier
-MAX_ERR = 4;
+% Lambda is the tuning parameter multiplied with our L2 penalty term
+LAMBDA = 100;
 
 % Read in two desired images
 img_A = imread('./data/CapitalRegionA.jpg');
@@ -13,61 +11,30 @@ data = validation.pts;
 % Read in true homography matrix for validation against ground truth
 H_true = validation.model;
 
-% Only need three points to compute a homography
-num_points = 3;
+% First three rows contain points in image A
+A_true = data(1:3,:);
+% Last three rows contain corresponding points in image B
+B_true = data(4:6,:);
+num_points = size(B_true,2);
 
-best_H = ones(3,3);
-best_num_inliers = 0;
-best_train_error = intmax;
-
-% Random Sample Consensus (RANSAC)
-for iter = 1:NUM_ITER    
-    % Randomly choose three potential inliers from the extracted keypoints
-    chosen_col = randperm(size(data,2),num_points);
-    A_chosen = data(1:3,chosen_col);
-    B_chosen = data(4:6,chosen_col);
+% Estimate homography matrix, H, using least squares regression
+cvx_begin
+    variable H_est(3,3)
+    expression A_est(size(A_true))
     
-    % Save the remaining points for validation (counting number of inliers)
-    data_remaining = data;
-    data_remaining(:,chosen_col) = [];
-    A_remaining = data_remaining(1:3,:);
-    B_remaining = data_remaining(4:6,:);
-    
-    % Estimate homography matrix using least squares with the chosen points
-    cvx_begin
-        variable H_est(3,3)
-        expression A_est(size(A_chosen))
-
-        for i = 1:num_points
-            A_est(:,i) = H_est*B_chosen(:,i);
-        end
-        minimize 1/num_points * pow_pos(norm(A_est - A_chosen),2)
-    cvx_end
-    train_error = cvx_optval;
-    
-    % Validate the model on all other points by finding the distance
-    %  between estimate and ground truth
-    num_remaining = size(data_remaining,2);
-    num_inliers = 0;
-    for i = 1:num_remaining
-        A_est(:,i) = H_est*B_remaining(:,i);
-        distance = 1/num_remaining * norm(A_est(:,i) - A_remaining(:,i))^2;
-        if distance < MAX_ERR
-            num_inliers = num_inliers + 1;
-        end
+    for i = 1:num_points
+        A_est(:,i) = H_est*B_true(:,i);
     end
+    minimize 1/num_points*pow_pos(norm(A_est - A_true),2) + LAMBDA*pow_pos(norm(B_true),2)
     
-    % Save the best homography matrix according to number of inliers
-    if num_inliers > best_num_inliers
-        best_H = H_est;
-        best_num_inliers = num_inliers;
-        best_train_error = train_error;
-    end
-end
+    subject to
+    H_est(3,1) == 0;
+    H_est(3,2) == 0;
+    H_est(3,3) == 1;
+cvx_end
 
-num_inliers = best_num_inliers;
-train_error = best_train_error;
-test_error = 1/9*norm(H_est - H_true)^2;
+train_error = cvx_optval;
+test_error = norm(H_est - H_true)^2 / 9;
 
 % Want to extend the dimensions of image A by the diagonal
 %  of image B, which is the max amount they may overlap
@@ -90,7 +57,7 @@ for x = 1:size(img_B,2)
         % Convert point in image B to homogeneous coordinates
         B_point = [x; y; 1];
         % Use homography matrix to map point in image B to image A
-        A_point = best_H*B_point;
+        A_point = H_est*B_point;
         % Normalize point in image A by third coordinate
         A_point = A_point / A_point(3);
         % Drop third coordinate to convert from homogeneous to image coords

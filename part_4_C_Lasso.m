@@ -1,3 +1,6 @@
+% Lambda is the tuning parameter multiplied with our L1 penalty term
+LAMBDA = 10;
+
 % Read in two desired images
 img_A = imread('./data/EiffelA.png');
 img_B = imread('./data/EiffelB.png');
@@ -22,7 +25,12 @@ cvx_begin
     for i = 1:num_points
         A_est(:,i) = H_est*B_true(:,i);
     end
-    minimize pow_pos(norm(A_est - A_true),2) / num_points
+    minimize 1/num_points*pow_pos(norm(A_est - A_true),2) + LAMBDA*norm(B_true,1)
+    
+    subject to
+    H_est(3,1) == 0;
+    H_est(3,2) == 0;
+    H_est(3,3) == 1;
 cvx_end
 
 train_error = cvx_optval;

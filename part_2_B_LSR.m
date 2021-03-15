@@ -1,12 +1,9 @@
-% Lambda is the tuning parameter multiplied with our L2 penalty term
-LAMBDA = 100;
-
 % Read in two desired images
-img_A = imread('./data/EiffelA.png');
-img_B = imread('./data/EiffelB.png');
+img_A = imread('./data/CapitalRegionA.jpg');
+img_B = imread('./data/CapitalRegionB.jpg');
 
 % Read in extracted and matched features
-load('./data/Eiffel_vpts.mat');
+load('./data/CapitalRegion_vpts.mat');
 data = validation.pts;
 % Read in true homography matrix for validation against ground truth
 H_true = validation.model;
@@ -25,7 +22,12 @@ cvx_begin
     for i = 1:num_points
         A_est(:,i) = H_est*B_true(:,i);
     end
-    minimize 1/num_points*pow_pos(norm(A_est - A_true),2) + LAMBDA*pow_pos(norm(B_true),2)
+    minimize pow_pos(norm(A_est - A_true),2) / num_points
+    
+    subject to
+    H_est(3,1) == 0;
+    H_est(3,2) == 0;
+    H_est(3,3) == 1;
 cvx_end
 
 train_error = cvx_optval;

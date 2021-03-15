@@ -1,73 +1,83 @@
-% NUM_ITER is the number of iterations RANSAC will run
-NUM_ITER = 30;
-% MAX_ERR is the maximum distance allowed for a point to be an inlier
-MAX_ERR = 5;
-
 % Read in two desired images
-img_A = imread('./data/BostonA.jpg');
-img_B = imread('./data/BostonB.jpg');
+img_A = imread('./data/EiffelA.png');
+img_B = imread('./data/EiffelB.png');
 
 % Read in extracted and matched features
-load('./data/Boston_vpts.mat');
+load('./data/Eiffel_vpts.mat');
 data = validation.pts;
 % Read in true homography matrix for validation against ground truth
 H_true = validation.model;
 
-% Only need three points to compute a homography
-num_points = 3;
+% Only three points are needed to compute a homography. Hence, k depends
+%  on the number of 3-point combinations possible with the given data
+num_points = size(data,2);
+k = nchoosek(num_points,3);
+
+% Partition data into k sets, each containing 3 point-pairs for training,
+%  as well as the remainder of the data for validation
+subsets = zeros(size(data,1),size(data,2),k);
+indices = nchoosek(1:num_points,3);
+for set = 1:k
+    % First three columns of this subset contain the chosen point-pairs
+    subsets(:,1,set) = data(:,indices(set,1));
+    subsets(:,2,set) = data(:,indices(set,2));
+    subsets(:,3,set) = data(:,indices(set,3));
+    % Delete the columns that have already been chosen
+    data_remaining = data;
+    data_remaining(:,indices(set,1)) = [];
+    data_remaining(:,indices(set,2)-1) = [];
+    data_remaining(:,indices(set,3)-2) = [];
+    % Remaining columns of this subset contain the remaining point-pairs
+    subsets(:,4:num_points,set) = data_remaining;
+end
 
 best_H = ones(3,3);
-best_num_inliers = 0;
 best_train_error = intmax;
+best_test_error = intmax;
 
-% Random Sample Consensus (RANSAC)
-for iter = 1:NUM_ITER    
-    % Randomly choose three potential inliers from the extracted keypoints
-    chosen_col = randperm(size(data,2),num_points);
-    A_chosen = data(1:3,chosen_col);
-    B_chosen = data(4:6,chosen_col);
-    
-    % Save the remaining points for validation (counting number of inliers)
-    data_remaining = data;
-    data_remaining(:,chosen_col) = [];
-    A_remaining = data_remaining(1:3,:);
-    B_remaining = data_remaining(4:6,:);
-    
-    % Estimate homography matrix using least squares with the chosen points
+% k-fold cross validation
+for iter = 1:k
+    % Estimate homography matrix using least squares with the current subset
+    A_chosen = subsets(1:3,1:3,iter);
+    B_chosen = subsets(4:6,1:3,iter);
     cvx_begin
         variable H_est(3,3)
         expression A_est(size(A_chosen))
 
-        for i = 1:num_points
+        for i = 1:3
             A_est(:,i) = H_est*B_chosen(:,i);
         end
-        minimize 1/num_points * pow_pos(norm(A_est - A_chosen),2)
+        minimize 1/3 * pow_pos(norm(A_est - A_chosen),2)
+        
+        subject to
+        H_est(3,1) == 0;
+        H_est(3,2) == 0;
+        H_est(3,3) == 1;
     cvx_end
     train_error = cvx_optval;
     
-    % Validate the model on all other points by finding the distance
-    %  between estimate and ground truth
-    num_remaining = size(data_remaining,2);
-    num_inliers = 0;
+    % Validate the model using all remaining points in the current subset
+    A_remaining = subsets(1:3,4:num_points,iter);
+    B_remaining = subsets(4:6,4:num_points,iter);
+    num_remaining = num_points - 3;
+    distance = zeros(1,num_remaining);
     for i = 1:num_remaining
         A_est(:,i) = H_est*B_remaining(:,i);
-        distance = 1/num_remaining * norm(A_est(:,i) - A_remaining(:,i))^2;
-        if distance < MAX_ERR
-            num_inliers = num_inliers + 1;
-        end
+        distance(i) = norm(A_est(:,i) - A_remaining(:,i));
     end
+    test_error = 1/num_remaining * sumsqr(distance);
     
-    % Save the best homography matrix according to number of inliers
-    if num_inliers > best_num_inliers
+    % Save the best homography matrix based on the test error for this set
+    if test_error < best_test_error
         best_H = H_est;
-        best_num_inliers = num_inliers;
         best_train_error = train_error;
+        best_test_error = test_error;
     end
 end
 
-num_inliers = best_num_inliers;
 train_error = best_train_error;
-test_error = 1/9*norm(H_est - H_true)^2;
+test_error = best_test_error;
+H_error = 1/9*norm(H_est - H_true)^2;
 
 % Want to extend the dimensions of image A by the diagonal
 %  of image B, which is the max amount they may overlap

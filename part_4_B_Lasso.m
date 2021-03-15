@@ -1,78 +1,40 @@
+% Lambda is the tuning parameter multiplied with our L1 penalty term
+LAMBDA = 10;
+
 % Read in two desired images
-img_A = imread('./data/EiffelA.png');
-img_B = imread('./data/EiffelB.png');
+img_A = imread('./data/CapitalRegionA.jpg');
+img_B = imread('./data/CapitalRegionB.jpg');
 
 % Read in extracted and matched features
-load('./data/Eiffel_vpts.mat');
+load('./data/CapitalRegion_vpts.mat');
 data = validation.pts;
 % Read in true homography matrix for validation against ground truth
 H_true = validation.model;
 
-% Only three points are needed to compute a homography. Hence, k depends
-%  on the number of 3-point combinations possible with the given data
-num_points = size(data,2);
-k = nchoosek(num_points,3);
+% First three rows contain points in image A
+A_true = data(1:3,:);
+% Last three rows contain corresponding points in image B
+B_true = data(4:6,:);
+num_points = size(B_true,2);
 
-% Partition data into k sets, each containing 3 point-pairs for training,
-%  as well as the remainder of the data for validation
-subsets = zeros(size(data,1),size(data,2),k);
-indices = nchoosek(1:num_points,3);
-for set = 1:k
-    % First three columns of this subset contain the chosen point-pairs
-    subsets(:,1,set) = data(:,indices(set,1));
-    subsets(:,2,set) = data(:,indices(set,2));
-    subsets(:,3,set) = data(:,indices(set,3));
-    % Delete the columns that have already been chosen
-    data_remaining = data;
-    data_remaining(:,indices(set,1)) = [];
-    data_remaining(:,indices(set,2)-1) = [];
-    data_remaining(:,indices(set,3)-2) = [];
-    % Remaining columns of this subset contain the remaining point-pairs
-    subsets(:,4:num_points,set) = data_remaining;
-end
-
-best_H = ones(3,3);
-best_train_error = intmax;
-best_test_error = intmax;
-
-% k-fold cross validation
-for iter = 1:k
-    % Estimate homography matrix using least squares with the current subset
-    A_chosen = subsets(1:3,1:3,iter);
-    B_chosen = subsets(4:6,1:3,iter);
-    cvx_begin
-        variable H_est(3,3)
-        expression A_est(size(A_chosen))
-
-        for i = 1:3
-            A_est(:,i) = H_est*B_chosen(:,i);
-        end
-        minimize 1/3 * pow_pos(norm(A_est - A_chosen),2)
-    cvx_end
-    train_error = cvx_optval;
+% Estimate homography matrix, H, using least squares regression
+cvx_begin
+    variable H_est(3,3)
+    expression A_est(size(A_true))
     
-    % Validate the model using all remaining points in the current subset
-    A_remaining = subsets(1:3,4:num_points,iter);
-    B_remaining = subsets(4:6,4:num_points,iter);
-    num_remaining = num_points - 3;
-    distance = zeros(1,num_remaining);
-    for i = 1:num_remaining
-        A_est(:,i) = H_est*B_remaining(:,i);
-        distance(i) = norm(A_est(:,i) - A_remaining(:,i));
+    for i = 1:num_points
+        A_est(:,i) = H_est*B_true(:,i);
     end
-    test_error = 1/num_remaining * sumsqr(distance);
+    minimize 1/num_points*pow_pos(norm(A_est - A_true),2) + LAMBDA*norm(B_true,1)
     
-    % Save the best homography matrix based on the test error for this set
-    if test_error < best_test_error
-        best_H = H_est;
-        best_train_error = train_error;
-        best_test_error = test_error;
-    end
-end
+    subject to
+    H_est(3,1) == 0;
+    H_est(3,2) == 0;
+    H_est(3,3) == 1;
+cvx_end
 
-train_error = best_train_error;
-test_error = best_test_error;
-H_error = 1/9*norm(H_est - H_true)^2;
+train_error = cvx_optval;
+test_error = norm(H_est - H_true)^2 / 9;
 
 % Want to extend the dimensions of image A by the diagonal
 %  of image B, which is the max amount they may overlap
@@ -95,7 +57,7 @@ for x = 1:size(img_B,2)
         % Convert point in image B to homogeneous coordinates
         B_point = [x; y; 1];
         % Use homography matrix to map point in image B to image A
-        A_point = best_H*B_point;
+        A_point = H_est*B_point;
         % Normalize point in image A by third coordinate
         A_point = A_point / A_point(3);
         % Drop third coordinate to convert from homogeneous to image coords
