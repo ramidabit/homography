@@ -1,7 +1,3 @@
-## **Homography Estimation for Image Alignment**
-Rami Dabit (dabit@ucsb.edu)
-
-
 ## **Table of Contents**
 1. [Introduction](#1-introduction)
    - A. [Problem Overview](#a-problem-overview)
