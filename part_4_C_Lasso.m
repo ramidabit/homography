@@ -1,5 +1,5 @@
 % Lambda is the tuning parameter multiplied with our L1 penalty term
-LAMBDA = 10;
+LAMBDA = 0.5;
 
 % Read in two desired images
 img_A = imread('./data/EiffelA.png');
@@ -20,13 +20,12 @@ num_points = size(B_true,2);
 % Estimate homography matrix, H, using Lasso regression
 cvx_begin
     variable H_est(3,3)
-    variable h
     expression A_est(size(A_true))
     
     for i = 1:num_points
         A_est(:,i) = H_est*B_true(:,i);
     end
-    minimize 1/num_points*pow_pos(norm(A_est - A_true),2) + LAMBDA*norm(h,1)
+    minimize 1/num_points*pow_pos(norm(A_est - A_true),2) + LAMBDA*norm(H_est,1)
     
     subject to
     H_est(3,1) == 0;
