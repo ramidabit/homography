@@ -9,44 +9,29 @@ Rami Dabit (dabit@ucsb.edu)
    - C. [Expectations](#c-expectations)
 
 2. [Least Squares Regression](#2-least-squares-regression)
-
-A. [Mathematical Model](#a-mathematical-model-1)
-
-B. [Solution](#b-solution-1)
-
-C. [Results and Discussion](#c-results-and-discussion-1)
+   - A. [Mathematical Model](#a-mathematical-model)
+   - B. [Solution](#b-solution)
+   - C. [Results and Discussion](#c-results-and-discussion)
 
 3. [L1 Regression](#3-l1-regression)
-
-A. [Mathematical Model](#a-mathematical-model-2)
-
-B. [Solution](#b-solution-2)
-
-C. [Results and Discussion](#c-results-and-discussion-2)
+   - A. [Mathematical Model](#a-mathematical-model-1)
+   - B. [Solution](#b-solution-1)
+   - C. [Results and Discussion](#c-results-and-discussion-1)
 
 4. [Regularized Regression](#4-regularized-regression)
-
-A. [Mathematical Model](#a-mathematical-model-3)
-
-B. [Solution](#b-solution-3)
-
-C. [Results and Discussion](#c-results-and-discussion-3)
+   - A. [Mathematical Model](#a-mathematical-model-2)
+   - B. [Solution](#b-solution-2)
+   - C. [Results and Discussion](#c-results-and-discussion-2)
 
 5. [Random Sample Consensus](#5-random-sample-consensus)
+   - A. [Mathematical Model](#a-mathematical-model-3)
+   - B. [Solution](#b-solution-3)
+   - C. [Results and Discussion](#c-results-and-discussion-3)
 
-A. [Mathematical Model](#a-mathematical-model-4)
-
-B. [Solution](#b-solution-4)
-
-C. [Results and Discussion](#c-results-and-discussion-4)
-
-6. [k-fold Cross-Validation](#6-kfold-crossvalidation)
-
-A. [Mathematical Model](#a-mathematical-model-5)
-
-B. [Solution](#b-solution-5)
-
-C. [Results and Discussion](#c-results-and-discussion-5)
+6. [k-fold Cross-Validation](#6-k-fold-cross-validation)
+   - A. [Mathematical Model](#a-mathematical-model-4)
+   - B. [Solution](#b-solution-4)
+   - C. [Results and Discussion](#c-results-and-discussion-4)
 
 7. [Conclusion](#7-conclusion)
 
