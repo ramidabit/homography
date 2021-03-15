@@ -2,17 +2,21 @@
 Rami Dabit (dabit@ucsb.edu)
 
 ## **Table of Contents**
-1. [Introduction](#1.-Introduction)
+1. [Introduction](##-1.-Introduction)
 
-  A. [Problem Overview](#A.-Problem-Overview)
-  B. [The Dataset](#B.-The-Dataset)
-  C. [Expectations](#C.-Expectations)
+  A. [Problem Overview](##-A.-Problem-Overview)
+  
+  B. [The Dataset](##-B.-The-Dataset)
+  
+  C. [Expectations](##-C.-Expectations)
 
-2. [Least Squares Regression](#2.-Least-Squares-Regression)
+2. [Least Squares Regression](##2.-Least-Squares-Regression)
 
-  A. [Mathematical Model](#A.-Mathematical-Model-1)
-  B. [Solution](#B.-Solution-1)
-  C. [Results and Discussion](#C.-Results-and-Discussion-1)
+      A. [Mathematical Model](##A.-Mathematical-Model-1)
+  
+      B. [Solution](##B.-Solution-1)
+  
+  C. [Results and Discussion](##C.-Results-and-Discussion-1)
 
 3. [L1 Regression](#3.-L1-Regression)
 
