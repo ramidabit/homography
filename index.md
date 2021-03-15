@@ -244,7 +244,7 @@ Rather than minimizing the 2-norm or Euclidian distance as we did in the previou
 ![Image](https://i.imgur.com/IFKaFRR.png)
 
 ### B. Solution
-Similar to the previous approach, we solve this optimization problem using CVX as implemented in the code below.
+Similar to the previous approach, we can solve this optimization problem using CVX as implemented in the code below.
 ```markdown
 % First three rows contain points in image A
 A_true = data(1:3,:);
@@ -294,24 +294,327 @@ Below are the results of the homography in our three test cases using L1 regress
 
 ## **4. Regularized Regression**
 ### A. Mathematical Model
-Outliers may sometimes cause our model to select values for the elements of _H_ which are too high or otherwise erroneous, and we can penalize against these effects by adding a penalty term to our least squares model. The penatly term comes in the form of an additional decision variable, which we will call _h_, has a norm taken of it, and is also multiplied by a tunable parameter λ. In this section, we will explore two forms of regularization called Lasso and Ridge regularization, or L1 and L2 regularization, respectively.
-![Image]()
-![Image]()
+Outliers may sometimes cause our model to select values for the elements of _H_ which are too high or otherwise erroneous, and we can penalize against these effects by adding a penalty term to our least squares model. The penatly term comes in the form of the decision variable added to our objective function and with a norm taken of it, and is also multiplied by a tunable parameter λ. In this section, we will explore two forms of regularization called Lasso and Ridge regularization, or L1 and L2 regularization, respectively.
+
+**Lasso (L1) Regularization:**
+![Image](https://i.imgur.com/a53N7G6.png)
+**Ridge (L2) Regularization:**
+![Image](https://i.imgur.com/K4kUvVF.png)
 
 ### B. Solution
+Lasso and Ridge regularization are implemented in CVX using the code blocks below.
+**Lasso:**
+```markdown
+% Lambda is the tuning parameter multiplied with our L1 penalty term
+LAMBDA = 0.5;
+
+% First three rows contain points in image A
+A_true = data(1:3,:);
+% Last three rows contain corresponding points in image B
+B_true = data(4:6,:);
+num_points = size(B_true,2);
+
+% Estimate homography matrix, H, using Lasso regression
+cvx_begin
+    variable H_est(3,3)
+    expression A_est(size(A_true))
+    
+    for i = 1:num_points
+        A_est(:,i) = H_est*B_true(:,i);
+    end
+    minimize 1/num_points*pow_pos(norm(A_est - A_true),2) + LAMBDA*norm(H_est,1)
+    
+    subject to
+    H_est(3,1) == 0;
+    H_est(3,2) == 0;
+    H_est(3,3) == 1;
+cvx_end
+
+train_error = cvx_optval;
+test_error = norm(H_est - H_true)^2 / 9;
+```
+**Ridge:**
+```markdown
+% Lambda is the tuning parameter multiplied with our L2 penalty term
+LAMBDA = 0.001;
+
+% First three rows contain points in image A
+A_true = data(1:3,:);
+% Last three rows contain corresponding points in image B
+B_true = data(4:6,:);
+num_points = size(B_true,2);
+
+% Estimate homography matrix, H, using Ridge regression
+cvx_begin
+    variable H_est(3,3)
+    expression A_est(size(A_true))
+    
+    for i = 1:num_points
+        A_est(:,i) = H_est*B_true(:,i);
+    end
+    minimize 1/num_points*pow_pos(norm(A_est - A_true),2) + LAMBDA*pow_pos(norm(H_est),2)
+    
+    subject to
+    H_est(3,1) == 0;
+    H_est(3,2) == 0;
+    H_est(3,3) == 1;
+cvx_end
+
+train_error = cvx_optval;
+test_error = norm(H_est - H_true)^2 / 9;
+```
+
 ### C. Results and Discussion
+Below are the results of projection for the three cases using Lasso and Ridge Regularization.
+
+
+**Boston:**
+**Lasso, λ = 0.5:**
+![Image](https://i.imgur.com/B8c4kvy.png)
+- Training Error: 441.7389
+- Test Error: 166.3076
+**Ridge, λ = 0.001:**
+![Image](https://i.imgur.com/5C06L1W.png)
+- Training Error: 578.4854
+- Test Error: 88.3699
+
+**Capital Region:**
+**Lasso, λ = 0.5:**
+![Image](https://i.imgur.com/Sj0xpPy.png)
+- Training Error: 759.4370
+- Test Error: 7.1245e+04
+**Ridge, λ = 0.001:**
+![Image](https://i.imgur.com/l5dObPN.png)
+- Training Error: 1.3704e+03
+- Test Error: 7.3165e+04
+
+**Eiffel:**
+**Lasso, λ = 0.5:**
+![Image](https://i.imgur.com/OiLaoSD.png)
+- Training Error: 607.9034
+- Test Error: 1.0234e+04
+**Ridge, λ = 0.001:**
+![Image](https://i.imgur.com/akjdjGm.png)
+- Training Error: 658.2836
+- Test Error: 1.4798e+04
+
+The tuning of the parameter λ is critical to both regularization methods, with higher λ values causing really inaccurate results. This was especially noticable in the case of Ridge regularization, where
 
 
 ## **5. Random Sample Consensus**
 ### A. Mathematical Model
+Unlike our previous examples where the homography matrix is found using an optimzation model, random sample consensus (RANSAC) works iteratively to find an appropriate homography. In each iteration, three random point-pairs are randomly selected from our dataset. With these three datapoints, RANSAC hypothesizes a homography matrix which might describe the mapping from one image to the other. Using this hypothesis, the error value for the remaining datapoints is calculated, and the number inliers is counted. At the end of the interations, the model with the highest number of inliers is chosen as the correct mapping.
+
+In the implementation below, we feed RANSAC with two parameters: a predefined number of iterations and the maximum amount error which may be tolerated for a datapoint to count as an inlier. Typically, the number of iterations needed depends on multiple factors, such as the desired probability of the final result being correct and the ratio of inliers to outliers in the dataset; however, we can also predefine it for simplicity. RANSAC works best when the outlier ratio is less than 50% of the available datapoints.
+
 ### B. Solution
+Below is the implementation of random sample consensus, which uses CVX to perform least squares at each iteration. The datapoints which are not randomly selected to train on are instead responsible for "voting" on the correctness of the chosen model by supplying a test error.
+
+Note that 30 and 5 are shown for the number of iterations and maximum error below, but these parameters may be adjusted. These values correspond to the first case of "Boston," and are different in the cases "Capital Region" and "Eiffel."
+```markdown
+% NUM_ITER is the number of iterations RANSAC will run
+NUM_ITER = 30;
+% MAX_ERR is the maximum distance allowed for a point to be an inlier
+MAX_ERR = 5;
+
+% Only need three points to compute a homography
+num_points = 3;
+
+best_H = ones(3,3);
+best_num_inliers = 0;
+best_train_error = intmax;
+
+% Random Sample Consensus (RANSAC)
+for iter = 1:NUM_ITER    
+    % Randomly choose three potential inliers from the extracted keypoints
+    chosen_col = randperm(size(data,2),num_points);
+    A_chosen = data(1:3,chosen_col);
+    B_chosen = data(4:6,chosen_col);
+    
+    % Save the remaining points for validation (counting number of inliers)
+    data_remaining = data;
+    data_remaining(:,chosen_col) = [];
+    A_remaining = data_remaining(1:3,:);
+    B_remaining = data_remaining(4:6,:);
+    
+    % Estimate homography matrix using least squares with the chosen points
+    cvx_begin
+        variable H_est(3,3)
+        expression A_est(size(A_chosen))
+
+        for i = 1:num_points
+            A_est(:,i) = H_est*B_chosen(:,i);
+        end
+        minimize 1/num_points * pow_pos(norm(A_est - A_chosen),2)
+        
+        subject to
+        H_est(3,1) == 0;
+        H_est(3,2) == 0;
+        H_est(3,3) == 1;
+    cvx_end
+    train_error = cvx_optval;
+    
+    % Validate the model on all other points by finding the distance
+    %  between estimate and ground truth
+    num_remaining = size(data_remaining,2);
+    num_inliers = 0;
+    for i = 1:num_remaining
+        A_est(:,i) = H_est*B_remaining(:,i);
+        distance = 1/num_remaining * norm(A_est(:,i) - A_remaining(:,i))^2;
+        if distance < MAX_ERR
+            num_inliers = num_inliers + 1;
+        end
+    end
+    
+    % Save the best homography matrix according to number of inliers
+    if num_inliers > best_num_inliers
+        best_H = H_est;
+        best_num_inliers = num_inliers;
+        best_train_error = train_error;
+    end
+end
+
+num_inliers = best_num_inliers;
+train_error = best_train_error;
+test_error = 1/9*norm(H_est - H_true)^2;
+```
+
 ### C. Results and Discussion
+Below are the results produced by RANSAC for each of our test image pairs.
+
+
+**Boston:**
+![Image](https://i.imgur.com/8lE5ost.png)
+- Number of Iterations: 30
+- Maximum Error: 5
+- Number of Inliers: 2
+- Training Error: 4.4985e-09
+- Test Error: 106.9545
+
+**Capital Region:**
+![Image](https://i.imgur.com/oypzwln.png)
+- Number of Iterations: 60
+- Maximum Error: 4
+- Number of Inliers: 1
+- Training Error: 7.7442e-09
+- Test Error: 6.3250e+04
+
+**Eiffel:**
+![Image](https://i.imgur.com/M6uMnjZ.png)
+- Number of Iterations: 20
+- Maximum Error: 3
+- Number of Inliers: 2
+- Training Error: 7.7442e-09
+- Test Error: 1.3132e+04
 
 
 ## **6. k-fold Cross-Validation**
+
+
 ### A. Mathematical Model
+In performing random sample consensus, I was inspired to implement k-fold cross-validation due to the similarity in their operation. In k-fold cross-validation, the dataset is partitioned into k subsets where each subset is used exactly once as the training set, with the remainder of the datapoints used for training. Rather than choosing random samples, k-fold cross validation offers a more complete coverage of the dataset since every point-pair is used to train on.
+
+The question becomes what is k? With few points needed and few points to choose from, we find that there are "number of points" choose "3" possible combinations of point-pairs that could give a homography. As such, we train on all of these combinations one time, and use the error given by the rest of the points as our metric for choosing the best matrix, _H_. Hypothetically, this purely quantitative measurement should give better results than the notion of "inliers" used by RANSAC, and our results are expected to reflect that.
+
 ### B. Solution
+An implementation of k-fold cross-validation using CVX at each iteration is given below.
+```markdown
+% Only three points are needed to compute a homography. Hence, k depends
+%  on the number of 3-point combinations possible with the given data
+num_points = size(data,2);
+k = nchoosek(num_points,3);
+
+% Partition data into k sets, each containing 3 point-pairs for training,
+%  as well as the remainder of the data for validation
+subsets = zeros(size(data,1),size(data,2),k);
+indices = nchoosek(1:num_points,3);
+for set = 1:k
+    % First three columns of this subset contain the chosen point-pairs
+    subsets(:,1,set) = data(:,indices(set,1));
+    subsets(:,2,set) = data(:,indices(set,2));
+    subsets(:,3,set) = data(:,indices(set,3));
+    % Delete the columns that have already been chosen
+    data_remaining = data;
+    data_remaining(:,indices(set,1)) = [];
+    data_remaining(:,indices(set,2)-1) = [];
+    data_remaining(:,indices(set,3)-2) = [];
+    % Remaining columns of this subset contain the remaining point-pairs
+    subsets(:,4:num_points,set) = data_remaining;
+end
+
+best_H = ones(3,3);
+best_train_error = intmax;
+best_test_error = intmax;
+
+% k-fold cross validation
+for iter = 1:k
+    % Estimate homography matrix using least squares with the current subset
+    A_chosen = subsets(1:3,1:3,iter);
+    B_chosen = subsets(4:6,1:3,iter);
+    cvx_begin
+        variable H_est(3,3)
+        expression A_est(size(A_chosen))
+
+        for i = 1:3
+            A_est(:,i) = H_est*B_chosen(:,i);
+        end
+        minimize 1/3 * pow_pos(norm(A_est - A_chosen),2)
+        
+        subject to
+        H_est(3,1) == 0;
+        H_est(3,2) == 0;
+        H_est(3,3) == 1;
+    cvx_end
+    train_error = cvx_optval;
+    
+    % Validate the model using all remaining points in the current subset
+    A_remaining = subsets(1:3,4:num_points,iter);
+    B_remaining = subsets(4:6,4:num_points,iter);
+    num_remaining = num_points - 3;
+    distance = zeros(1,num_remaining);
+    for i = 1:num_remaining
+        A_est(:,i) = H_est*B_remaining(:,i);
+        distance(i) = norm(A_est(:,i) - A_remaining(:,i));
+    end
+    test_error = 1/num_remaining * sumsqr(distance);
+    
+    % Save the best homography matrix based on the test error for this set
+    if test_error < best_test_error
+        best_H = H_est;
+        best_train_error = train_error;
+        best_test_error = test_error;
+    end
+end
+
+train_error = best_train_error;
+test_error = best_test_error;
+H_error = 1/9*norm(H_est - H_true)^2;
+```
+
 ### C. Results and Discussion
+Following k-fold cross-validation, the following image overlays were produced. The training error is no longer useful due to the fact that
+
+
+**Boston:**
+![Image](https://i.imgur.com/LhtAmug.png)
+- Training Error (Best case): 7.7442e-09
+- Test Error (Best case): 97.3498
+- Test Error (Against True H): 51.7504
+
+**Capital Region:**
+![Image](https://i.imgur.com/j7BkREG.png)
+- Training Error (Best case): 7.7442e-09
+- Test Error (Best case): 232.4625
+- Test Error (Against True H): 5.7804e+04
+
+**Eiffel:**
+![Image](https://i.imgur.com/iM6kvuj.png)
+- Training Error (Best case): 7.7442e-09
+- Test Error (Best case): 69.2201
+- Test Error (Against True H): 5.3474e+03
+
+I was surprised to find that k-fold cross validation performed worse than RANSAC, considering that RANSAC randomly chooses three datapoints to potentially describe our affine mapping while k-fold cross validation tries them all.
+It turns out that counting the number of inliers is a viable method after all, whereas minimizing the testing error is less effective.
 
 
 ## **7. Conclusion**
