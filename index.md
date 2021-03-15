@@ -33,22 +33,25 @@
 
 
 ## **1. Introduction**
-One puzzling problem in computer vision is how to align two images such that they may be overlaid for an increased field of view. Given two photos taken from the same viewpoint, one should be able to map points from one image to the other by multiplication with what is known as the homography matrix. Estimation of the matrix, however, is an optimization problem often solved using least squares regression. By detecting, extracting, and matching a few features which are present in both images, we can attempt to project all the points from one image onto the other. Meanwhile, we also wish to minimize the distance between where we are projecting them and where they should really be projected. If the mapping is approximated correctly, applying the homography to one of the images should cause it to rotate and translate such that it perfectly aligns with the other image, and overlaying the two images will produce a beautiful panorama. We will attempt to do so here using MATLAB and the CVX library for convex optimization.
+One puzzling problem in computer vision is how to align two images such that they may be overlaid for an increased field of view. Given two photos taken from the same viewpoint, one should be able to map points from one image to the other by multiplication with what is known as the homography matrix. Estimation of the matrix, however, is an optimization problem often solved using least squares regression. By detecting, extracting, and matching a few features which are present in both images, we can attempt to project all the points from one image onto the other. Meanwhile, we also wish to minimize the distance between their projected location and where they actually reside. If the mapping is approximated correctly, applying the homography to one of the images should cause it to rotate and translate such that it perfectly aligns with the other image, and overlaying the two images should produce a beautiful panorama. We will attempt to do so here using MATLAB and the CVX library for convex optimization.
 
-Given that the regression task is inherently susceptible to outliers, we must also explore other approaches for robust homography estimation. Instead of least squares, we may choose to minimize the 1-norm rather than the 2-norm, or perform L1 regression. Outlying matches may also be penalized using regularized regression methods such as Lasso and Ridge regularization, also known as L1 and L2 regularization, respectively. Alternatively, we could use an iterative approach such as the random sample consensus (RANSAC) algorithm to reject outliers, or even k-fold cross-validation for a more complete exploration of our data. The goal of this project is to estimate homographies using the using these various methods, and to compare and contrast their performance by attempting to stitch photos together using the estimated mapping.
+Given that the regression task is inherently susceptible to outliers, we must also explore other approaches for robust homography estimation. Instead of minimizing the 2-norm as in least squares, we may choose to minimize the 1-norm, or perform L1 regression. Outlying matches may also be penalized using regularized regression methods such as Lasso and Ridge, also respectively known as L1 and L2 regularization. Alternatively, we may use an iterative approach such as the random sample consensus (RANSAC) algorithm to reject outliers, or even k-fold cross-validation for a more completely-sampled exploration of our data. The goal of this project is to estimate homographies using the using these various methods, and to compare and contrast their performance by attempting to stitch photos together using the estimated mapping.
 
 ### A. Problem Overview
 **What is a Homography?**
+
 The solution to the image alignment problem involves a series of rotations and translations in what is generally known as a projective transformation; however, a projective transformation in two dimensions can simply be called a homography. In a homography, each image point has a third dimension added to it, moving from the realm of image coordinates to homogeneous coordinates. Hence, multiplication by the homography matrix provides a mapping from ℝ<sup>3</sup> to ℝ<sup>3</sup>.
+
 ![Image](https://i.imgur.com/dfwXYqP.png)
 
 This involves a third element, _w_, which is added to allow the affine transformation: a subclass of projective transformations which includes linear transformations as well as nonlinear, affine operations. The key to our homography matrix is that it is essentially an affine transformation, where both lines and parallelism are preserved from one image plane to the other. Generally speaking, this is not true for projective transformations, which preserve lines but not necessarily parallelism.
+
 ![Image](https://i.imgur.com/0uukr5N.png)
 
 Following our mapping of points from one image to the next, we must finally convert out of homogeneous coordinates by normalizing by the third coordinate, _w'_. This gives a resulting point [x'/w', y'/w', 1]<sup>T</sup>, where we can simply drop the ‘1’ and return to an image point in ℝ<sup>2</sup>.
 
 ### B. The Dataset
-The dataset for this project is provided by the Czech Technical University in Prague, and includes several image pairs whose features have already been extracted and matched. Along with each image pair, the correct homography matrix is given so may verify our work. As such, each implementation will be followed by a testing error, or the mean squared distance between the estimated and true homography matrices. While it is important to report these for a quantitative measurement of our performance, it is also important to note that these values hold little weight. From the "README" file of the dataset, the point correspondences were manually selected by the author who zoomed in to select features and their corresponding matches. Hence, the accuracy of the creator is a factor in determining the "correct" mapping of the points. In many of the following cases, we see near-zero testing errors as well as misalignment, giving further cause as to why we should visually verify our images rather than relying on metrics alone.
+The dataset for this project is provided by the Czech Technical University in Prague, and includes several image pairs whose features have already been extracted and matched. Along with each image pair, the correct homography matrix is given so may verify our work. As such, each implementation will be followed by a testing error, or mean squared distance between the estimated and true homography matrices. While it is important to report these for a quantitative measurement of our performance, it is also important to note that these values should hold little weight. From the "README" file of the dataset, the point correspondences were manually selected by the creator who zoomed in to select features and their corresponding matches. Hence, the accuracy of the author is a factor in determining the "correct" mapping of the points. In many of the following cases, we see near-zero testing errors as well as misalignment, giving further cause as to why we should visually verify our images rather than relying on metrics alone.
 
 The “homogr” dataset for homographies is available at [CMP :: Data :: Two-view geometry](http://cmp.felk.cvut.cz/data/geometry2view/index.xhtml).
 
@@ -163,6 +166,8 @@ figure, imshowpair(valid_A,valid_B,'blend');
 ```
 
 The ground truth images, which we hope to validate our estimates against, are given below.
+
+
 **Boston:**
 ![Image](https://i.imgur.com/efXB6tk.png)
 
@@ -173,20 +178,126 @@ The ground truth images, which we hope to validate our estimates against, are gi
 ![Image](https://i.imgur.com/4Eb6WSr.png)
 
 
+Note that the results are imperfect even when using the given homography matrix.
+
+
 ## **2. Least Squares Regression**
 ### A. Mathematical Model
+As we have already seen above, multiplication by a 3-by-3 homography matrix provides a mapping from points in one image plane to another, and this mapping is in fact affine. In an affine transformation, not all nine elements of the transformation matrix are unknown. Namely, the bottom row is already known to be [0 0 1], where the bottom right element is a scaling factor between the two images. We are hence left with six degrees of freedom, requiring only three feature matches to estimate the entire homography. While I was able to model this in CVX as an unconstrained optimizaiton problem with no issues, it is more correct to assign these constraints on the elements of the bottom row.
+![Image](https://i.imgur.com/dOE02vX.png)
+
+The crux of the problem is minimizing the residuals between the estimated point mapping and the actual destination of the point's coordinates. Given that the input data is already in homogeneous coordinates—with a third coordinate of 1—this may be why CVX is able to correctly identify the bottom row in the absence of these constraints. With all nine elements of the homography matrix as our decision variables, we may formulate the optimization problem as follows.
+![Image](https://i.imgur.com/E6GzbeW.png)
+
 ### B. Solution
+We can solve this optimization in CVX using the code block below, which is also wrapped in the data import and image output blocks introduced previously.
+```markdown
+% First three rows contain points in image A
+A_true = data(1:3,:);
+% Last three rows contain corresponding points in image B
+B_true = data(4:6,:);
+num_points = size(B_true,2);
+
+% Estimate homography matrix, H, using least squares regression
+cvx_begin
+    variable H_est(3,3)
+    expression A_est(size(A_true))
+    
+    for i = 1:num_points
+        A_est(:,i) = H_est*B_true(:,i);
+    end
+    minimize pow_pos(norm(A_est - A_true),2) / num_points
+    
+    subject to
+    H_est(3,1) == 0;
+    H_est(3,2) == 0;
+    H_est(3,3) == 1;
+cvx_end
+
+train_error = cvx_optval;
+test_error = norm(H_est - H_true)^2 / 9;
+```
+
 ### C. Results and Discussion
+Below are the results of the homography on our three test images using least squares regression.
+
+
+**Boston:**
+![Image](https://i.imgur.com/ekdQ5JO.png)
+- Training Error: 95.2043
+- Test Error: 34.7323
+
+**Capital Region:**
+![Image](https://i.imgur.com/ezvSvLA.png)
+- Training Error: 77.3935
+- Test Error: 6.6612e+04
+
+**Eiffel:**
+![Image](https://i.imgur.com/Po8iKcT.png)
+- Training Error: 22.2534
+- Test Error: 8.5642e+03
 
 
 ## **3. L1 Regression**
 ### A. Mathematical Model
+Rather than minimizing the 2-norm or Euclidian distance as we did in the previous example, we can instead minimize the 1-norm or absolute deviations. Called L1 regression, this approach is known to be more robust to outliers because it generally leads to more sparse solutions, weighing less important features accordingly. It can be modeled as the following optimization problem.
+![Image](https://i.imgur.com/IFKaFRR.png)
+
 ### B. Solution
+Similar to the previous approach, we solve this optimization problem using CVX as implemented in the code below.
+```markdown
+% First three rows contain points in image A
+A_true = data(1:3,:);
+% Last three rows contain corresponding points in image B
+B_true = data(4:6,:);
+num_points = size(B_true,2);
+
+% Estimate homography matrix, H, using L1 regression
+cvx_begin
+    variable H_est(3,3)
+    expression A_est(size(A_true))
+    
+    for i = 1:num_points
+        A_est(:,i) = H_est*B_true(:,i);
+    end
+    minimize pow_pos(norm(A_est - A_true,1),2) / num_points
+    
+    subject to
+    H_est(3,1) == 0;
+    H_est(3,2) == 0;
+    H_est(3,3) == 1;
+cvx_end
+
+train_error = cvx_optval;
+test_error = norm(H_est - H_true)^2 / 9;
+```
+
 ### C. Results and Discussion
+Below are the results of the homography in our three test cases using L1 regression.
+
+
+**Boston:**
+![Image](https://i.imgur.com/qOW7U7h.png)
+- Training Error: 10.6060
+- Test Error: 86.0373
+
+**Capital Region:**
+![Image](https://i.imgur.com/EZxiDPf.png)
+- Training Error: 31.0400
+- Test Error: 6.8106e+04
+
+**Eiffel:**
+![Image](https://i.imgur.com/mAWwGRa.png)
+- Training Error: 8.8067
+- Test Error: 7.8049e+03
 
 
 ## **4. Regularized Regression**
 ### A. Mathematical Model
+Outliers may sometimes cause our model to select values for the elements of _H_ which are too high or otherwise erroneous, and we can penalize against these effects by adding a penalty term to our least squares model. The penatly term comes in the form of an additional decision variable, which we will call _h_, has a norm taken of it, and is also multiplied by a tunable parameter λ. In this section, we will explore two forms of regularization called Lasso and Ridge regularization, or L1 and L2 regularization, respectively.
+![Image]()
+![Image]()
+
 ### B. Solution
 ### C. Results and Discussion
 
