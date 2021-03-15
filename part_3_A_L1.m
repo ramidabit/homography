@@ -14,7 +14,7 @@ A_true = data(1:3,:);
 B_true = data(4:6,:);
 num_points = size(B_true,2);
 
-% Estimate homography matrix, H, using least squares regression
+% Estimate homography matrix, H, using L1 regression
 cvx_begin
     variable H_est(3,3)
     expression A_est(size(A_true))

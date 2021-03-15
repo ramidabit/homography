@@ -17,15 +17,16 @@ A_true = data(1:3,:);
 B_true = data(4:6,:);
 num_points = size(B_true,2);
 
-% Estimate homography matrix, H, using least squares regression
+% Estimate homography matrix, H, using Lasso regression
 cvx_begin
     variable H_est(3,3)
+    variable h
     expression A_est(size(A_true))
     
     for i = 1:num_points
         A_est(:,i) = H_est*B_true(:,i);
     end
-    minimize 1/num_points*pow_pos(norm(A_est - A_true),2) + LAMBDA*norm(B_true,1)
+    minimize 1/num_points*pow_pos(norm(A_est - A_true),2) + LAMBDA*norm(h,1)
     
     subject to
     H_est(3,1) == 0;
