@@ -1,37 +1,55 @@
-## Welcome to GitHub Pages
+## Homography Estimation for Image Alignment
+Rami Dabit (dabit@ucsb.edu)
 
-You can use the [editor on GitHub](https://github.com/ramidabit/homography/edit/gh-pages/index.md) to maintain and preview the content for your website in Markdown files.
+## Table of Contents
+1. [Introduction] (#-1.-Introduction)
+  A. [Problem Overview] (#-A.-Problem-Overview)
+  B. [The Dataset] (#-B.-The-Dataset)
+  C. [Expectations] (#-C.-Expectations)
+2. [Least Squares Regression] (#-2.-Least-Squares-Regression)
+  A. [Mathematical Model] (#-A.-Mathematical-Model-1)
+  B. [Solution] (#-B.-Solution-1)
+  C. [Results and Discussion] (#-C.-Results-and-Discussion-1)
+3. [L1 Regression] (#-3.-L1-Regression)
+  A. [Mathematical Model] (#-A.-Mathematical-Model-2)
+  B. [Solution] (#-B.-Solution-2)
+  C. [Results and Discussion] (#-C.-Results-and-Discussion-2)
+4. [Regularized Regression] (#-4.-Regularized-Regression)
+  A. [Mathematical Model] (#-A.-Mathematical-Model-3)
+  B. [Solution] (#-B.-Solution-3)
+  C. [Results and Discussion] (#-C.-Results-and-Discussion-3)
+5. [Random Sample Consensus] (#-5.-Random-Sample-Consensus)
+  A. [Mathematical Model] (#-A.-Mathematical-Model-4)
+  B. [Solution] (#-B.-Solution-4)
+  C. [Results and Discussion] (#-C.-Results-and-Discussion-4)
+6. [k-fold Cross-Validation] (#-6.-k-fold-Cross-Validation)
+  A. [Mathematical Model] (#-A.-Mathematical-Model-5)
+  B. [Solution] (#-B.-Solution-5)
+  C. [Results and Discussion] (#-C.-Results-and-Discussion-5)
+7. [Conclusion] (#-7.-Conclusion)
 
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
-
-### Markdown
-
-Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
-
-```markdown
-Syntax highlighted code block
-
-# Header 1
-## Header 2
-### Header 3
-
-- Bulleted
-- List
-
-1. Numbered
-2. List
-
-**Bold** and _Italic_ and `Code` text
-
-[Link](url) and ![Image](src)
-```
-
-For more details see [GitHub Flavored Markdown](https://guides.github.com/features/mastering-markdown/).
-
-### Jekyll Themes
-
-Your Pages site will use the layout and styles from the Jekyll theme you have selected in your [repository settings](https://github.com/ramidabit/homography/settings). The name of this theme is saved in the Jekyll `_config.yml` configuration file.
-
-### Support or Contact
-
-Having trouble with Pages? Check out our [documentation](https://docs.github.com/categories/github-pages-basics/) or [contact support](https://support.github.com/contact) and we’ll help you sort it out.
+## 1. Introduction
+### A. Problem Overview
+### B. The Dataset
+### C. Expectations
+## 2. Least Squares Regression
+### A. Mathematical Model
+### B. Solution
+### C. Results and Discussion
+## 3. L1 Regression
+### A. Mathematical Model
+### B. Solution
+### C. Results and Discussion
+## 4. Regularized Regression
+### A. Mathematical Model
+### B. Solution
+### C. Results and Discussion
+## 5. Random Sample Consensus
+### A. Mathematical Model
+### B. Solution
+### C. Results and Discussion
+## 6. k-fold Cross-Validation
+### A. Mathematical Model
+### B. Solution
+### C. Results and Discussion
+## 7. Conclusion
